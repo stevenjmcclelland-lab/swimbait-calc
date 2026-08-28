@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swimbait Buoyancy & Ballast Calculator</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .calculator-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 800px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        p.subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 640px) {
+            .grid-layout {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.825rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-color);
+        }
+
+        .results-panel {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .result-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-floating { background-color: rgba(56, 189, 248, 0.2); color: var(--accent-color); }
+        .status-suspending { background-color: rgba(34, 197, 94, 0.2); color: var(--success-color); }
+        .status-sinking { background-color: rgba(245, 158, 11, 0.2); color: var(--warning-color); }
+        .status-fastsinking { background-color: rgba(239, 68, 68, 0.2); color: var(--danger-color); }
+
+        .helper-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator-card">
+    <header>
+        <h1>Swimbait Buoyancy & Ballast Calculator</h1>
+        <p class="subtitle">Compute displaced volume, net buoyancy, and precise ballast requirements</p>
+    </header>
+
+    <div class="grid-layout">
+        <div class="input-section">
+            <div class="section-title">1. Body & Material Setup</div>
+           
+            <div class="input-group">
+                <label for="resinDensity">Resin/Body Material Density (g/cm³)</label>
+                <select id="resinDensity" onchange="toggleCustomResin(); calculate();">
+                    <option value="1.05">Rigid Polyurethane (Standard - 1.05)</option>
+                    <option value="0.92">Microballoons Mix / Light PU (0.92)</option>
+                    <option value="0.65">Balsa Wood (0.65)</option>
+                    <option value="1.15">Solid ABS / Hard Resin (1.15)</option>
+                    <option value="custom">Custom Density...</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="customResinGroup" style="display: none;">
+                <label for="customResin">Custom Material Density (g/cm³)</label>
+                <input type="number" id="customResin" value="1.00" step="0.01" min="0.1" oninput="calculate()">
+            </div>
+
+            <div class="input-group">
+                <label for="bodyVolume">Lure Shell Volume (cm³ / mL)</label>
+                <input type="number" id="bodyVolume" value="45.0" step="0.5" min="0.1" oninput="calculate()">
+                <div class="helper-text">Derived from CAD displacement or fluid immersion test</div>
+            </div>
+
+            <div class="input-group">
+                <label for="hardwareWeight">Hardware & Hooks Weight (g)</label>
+                <input type="number" id="hardwareWeight" value="6.5" step="0.1" min="0" oninput="calculate()">
+                <div class="helper-text">Split rings, treble hooks, screw eyes, internal wireframe</div>
+            </div>
+
+            <div class="section-title" style="margin-top: 16px;">2. Target Configuration</div>
+
+            <div class="input-group">
+                <label for="ballastMaterial">Ballast Material</label>
+                <select id="ballastMaterial" onchange="calculate()">
+                    <option value="11.34">Lead Weights (11.34 g/cm³)</option>
+                    <option value="19.30">Tungsten (19.30 g/cm³)</option>
+                    <option value="7.87">Steel / Brass (7.87 g/cm³)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="waterType">Water Type</label>
+                <select id="waterType" onchange="calculate()">
+                    <option value="1.000">Freshwater (1.000 g/cm³)</option>
+                    <option value="1.025">Saltwater / Ocean (1.025 g/cm³)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="section-title">3. Hydrodynamic Analysis</div>
+           
+            <div class="results-panel">
+                <div class="result-row">
+                    <span class="result-label">Unballasted Lure Weight</span>
+                    <span class="result-value" id="unballastedWeight">0.0 g</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Total Water Displacement</span>
+                    <span class="result-value" id="displacedMass">0.0 g</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Action State (No Ballast)</span>
+                    <span id="initialStateBadge" class="status-badge status-floating">Floating</span>
+                </div>
+
+                <hr style="border-color: var(--border-color); margin: 4px 0;">
+
+                <div class="result-row">
+                    <span class="result-label">Ballast Needed to Suspend</span>
+                    <span class="result-value" id="suspendingBallast" style="color: var(--accent-color);">0.0 g</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Ballast Volume Needed</span>
+                    <span class="result-value" id="ballastVolume">0.0 cm³</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Slow Sink Target (+0.5g)</span>
+                    <span class="result-value" id="slowSinkBallast">0.0 g</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Total Finished Weight (Susp.)</span>
+                    <span class="result-value" id="totalFinishedWeight">0.0 g</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleCustomResin() {
+        const select = document.getElementById('resinDensity');
+        const customGroup = document.getElementById('customResinGroup');
+        if (select.value === 'custom') {
+            customGroup.style.display = 'block';
+        } else {
+            customGroup.style.display = 'none';
+        }
+    }
+
+    function calculate() {
+        // Fetch material density
+        const resinSelect = document.getElementById('resinDensity');
+        let resinDensity = parseFloat(resinSelect.value);
+        if (resinSelect.value === 'custom') {
+            resinDensity = parseFloat(document.getElementById('customResin').value) || 1.0;
+        }
+
+        // Fetch numerical inputs
+        const bodyVolume = parseFloat(document.getElementById('bodyVolume').value) || 0;
+        const hardwareWeight = parseFloat(document.getElementById('hardwareWeight').value) || 0;
+        const ballastDensity = parseFloat(document.getElementById('ballastMaterial').value);
+        const waterDensity = parseFloat(document.getElementById('waterType').value);
+
+        // Calculations
+        // Mass of the shell itself
+        const shellWeight = bodyVolume * resinDensity;
+       
+        // Total unballasted weight
+        const unballastedWeight = shellWeight + hardwareWeight;
+
+        // Displaced water mass by shell volume
+        const totalWaterDisplacement = bodyVolume * waterDensity;
+
+        // Net buoyancy force without ballast (in grams equivalent force)
+        // Net = WaterDisplaced - UnballastedWeight
+        const initialNetBuoyancy = totalWaterDisplacement - unballastedWeight;
+
+        // Ballast logic accounting for displacement of the ballast itself:
+        // Target: Total Weight + Ballast Weight = Total Water Displacement + (Ballast Volume * Water Density)
+        // (Shell + HW + M_ballast) = Volume_shell * Rho_water + (M_ballast / Rho_ballast) * Rho_water
+        // M_ballast * (1 - Rho_water / Rho_ballast) = Volume_shell * Rho_water - (Shell + HW)
+        // M_ballast = (Net Buoyancy) / (1 - Rho_water / Rho_ballast)
+
+        const buoyancyFactor = 1 - (waterDensity / ballastDensity);
+        let suspendingBallast = initialNetBuoyancy / buoyancyFactor;
+       
+        let initialStatusText = "Floating";
+        let initialStatusClass = "status-floating";
+
+        if (initialNetBuoyancy < 0) {
+            initialStatusText = "Sinking";
+            initialStatusClass = "status-sinking";
+            suspendingBallast = 0; // Already sinks without ballast
+        }
+
+        const ballastVol = suspendingBallast / ballastDensity;
+        const slowSinkBallast = suspendingBallast > 0 ? suspendingBallast + 0.5 : 0;
+        const totalFinishedWeight = unballastedWeight + suspendingBallast;
+
+        // Render Outputs
+        document.getElementById('unballastedWeight').textContent = unballastedWeight.toFixed(2) + ' g';
+        document.getElementById('displacedMass').textContent = totalWaterDisplacement.toFixed(2) + ' g';
+       
+        const badge = document.getElementById('initialStateBadge');
+        badge.textContent = initialStatusText;
+        badge.className = `status-badge ${initialStatusClass}`;
+
+        document.getElementById('suspendingBallast').textContent = suspendingBallast > 0 ? suspendingBallast.toFixed(2) + ' g' : '0.00 g (Overweight)';
+        document.getElementById('ballastVolume').textContent = ballastVol > 0 ? ballastVol.toFixed(2) + ' cm³' : '0.00 cm³';
+        document.getElementById('slowSinkBallast').textContent = slowSinkBallast > 0 ? slowSinkBallast.toFixed(2) + ' g' : 'N/A';
+        document.getElementById('totalFinishedWeight').textContent = totalFinishedWeight.toFixed(2) + ' g';
+    }
+
+    // Initial Run
+    calculate();
+</script>
+
+</body>
+</html>
+
+ 
